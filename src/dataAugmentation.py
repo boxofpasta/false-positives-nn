@@ -7,7 +7,7 @@ import numpy as np
 
 
 def augment_data(in_folder_path, out_folder_path):
-    """ adds rotations, shears, flips to existing images, and saves
+    """ adds rotations and flips to existing images, and saves
         the new ones to the same folder """
 
     num_rots = 10

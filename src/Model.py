@@ -28,7 +28,7 @@ class Model:
         self.np_test_data = None
         self.cur_batch_iter = 0
         self.use_feed_dict = True
-        self.max_iters = 3000
+        self.max_iters = 26
         self.lambd = 1E-5
         self.batch_size = 60  # make this divisible by 2 please
         self.learn_rate = 2E-6
@@ -91,7 +91,7 @@ class Model:
         expanded_labels = tf.expand_dims(tf.cast(self.y, tf.float32), axis=1)
 
         # siamese pairings, same = 0, different = 1
-        # note that half_batch_len != self.batch_len / 2.0 sometimes (near end of epoch, when not enough remains)
+        # note that batch_len / 2.0 != self.batch_len / 2.0 sometimes (near end of epoch, when not enough remains)
         batch_len = tf.shape(self.a_fc2)[0]
         self.dist = tf.abs(self.a_fc2[0 : batch_len/2, :] - self.a_fc2[batch_len/2 : batch_len, :])
         W_d = init_rand_weight([fc2_len, 1])
@@ -149,29 +149,30 @@ class Model:
                 _, train_loss = self.sess.run([self.train_step, self.loss])
                 labels, preds, ims = self.sess.run([self.y, self.preds, self.x])
 
-            if i % 50 == 0:
+            if i % 25 == 0:
                 train_loss_hist.append(train_loss)
                 #test_loss_hist.append(test_loss)
-                print train_labels
-                print np.squeeze(train_preds)
-                print train_loss
+                #print train_labels
+                #print np.squeeze(train_preds)
+                print "at iteration : " +  str(i)
+                print "with loss : " + str(train_loss)
                 print ""
 
-        plt.plot(np.arange(len(train_loss_hist)), train_loss_hist, label="train loss")
-        plt.plot(np.arange(len(test_loss_hist)), test_loss_hist, label="test loss")
-        plt.legend(loc='upper right', fontsize=10)
-        plt.show()
+        #plt.plot(np.arange(len(train_loss_hist)), train_loss_hist, label="train loss")
+        #plt.plot(np.arange(len(test_loss_hist)), test_loss_hist, label="test loss")
+        #plt.legend(loc='upper right', fontsize=10)
+        #plt.show()
 
-        im, labels, preds = self.sess.run([self.x, self.y, self.preds], feed_dict={self.x: self.np_test_data[0], self.y: self.np_test_data[1]})
+        """im, labels, preds = self.sess.run([self.x, self.y, self.preds], feed_dict={self.x: self.np_test_data[0], self.y: self.np_test_data[1]})
         print "TEST PREDICTIONS "
         im = np.reshape(im[-1], (self.im_len, self.im_len))
         plt.imshow(im)
         plt.show()
         print labels
-        print np.squeeze(preds)
+        print np.squeeze(preds)"""
         coord.request_stop()
         coord.join(threads)
-        self.sess.close()
+        #self.sess.close()
 
     def get_evidence(self, im):
         """ prediction is based on running the network on input and entire support set,
@@ -187,7 +188,7 @@ class Model:
         diff = np.abs(np.array(preds) - np.array(labels))
         false_evidence = np.sum(diff) / np.float(len(self.np_train_data[0]))
         true_evidence = 1.0 - false_evidence
-        print "true evidence: " + str(true_evidence)
+        #print "true evidence: " + str(true_evidence)
         return true_evidence
 
     def get_evidence_arr(self, ims):
@@ -198,10 +199,13 @@ class Model:
 
 
 if __name__ == '__main__':
+    #dataAugmentation.augment_data("original_train_set/", "aug_train_set/")
+
     m = Model()
     m.train()
     evidences = m.get_evidence_arr(m.np_test_data[0])
     print evidences
     print m.np_test_data[1]
-    """
-    #dataAugmentation.augment_data("original_train_set/", "aug_train_set/")
+
+
+
