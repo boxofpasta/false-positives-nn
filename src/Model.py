@@ -33,6 +33,8 @@ class Model:
         self.batch_size = 60  # make this divisible by 2 please
         self.learn_rate = 2E-6
         self.im_len = self.loader.targ_im_h
+        self.train_data = self.loader.get_train_data()
+        self.test_data = self.loader.get_test_data()
         self.build_graph()
         self.sess = tf.Session()
 
@@ -40,15 +42,13 @@ class Model:
 
         # define graph
         if self.use_feed_dict:
-            self.train_data = self.loader.get_train_data()
-            self.test_data = self.loader.get_test_data()
             self.x = tf.placeholder(tf.float32, [None, self.im_len, self.im_len, self.loader.im_channels])
             self.y = tf.placeholder(tf.int32)
         else:
             self.x, self.y = self.loader.get_batch(self.batch_size)
 
         # normalize data
-        self.x = self.x - tf.reduce_mean(self.x, axis=1)
+        self.x = self.x - tf.reduce_mean(self.x, axis=0)
         transposed = tf.transpose(self.x)
         sqred_diffs = tf.squared_difference(tf.expand_dims(transposed, axis=1), tf.expand_dims(self.x, axis=0))
         stdev = tf.pow(tf.reduce_mean(sqred_diffs, axis=0), 0.5)
@@ -112,8 +112,8 @@ class Model:
     def get_batch(self):
         start_pos = self.cur_batch_iter * self.batch_size
 
-        # past the end
-        if start_pos >= len(self.np_train_data[0]):
+        # will go past the end
+        if start_pos + self.batch_size >= len(self.np_train_data[0]):
             randindx = np.arange(len(self.np_train_data[0]))
             np.random.shuffle(randindx)
             self.np_train_data[0] = self.np_train_data[0][randindx]
@@ -133,6 +133,7 @@ class Model:
 
         coord = tf.train.Coordinator()
         threads = tf.train.start_queue_runners(coord=coord, sess=self.sess)
+
         self.np_train_data = self.sess.run(self.train_data)
         self.np_test_data = self.sess.run(self.test_data)
 
@@ -149,7 +150,7 @@ class Model:
                 _, train_loss = self.sess.run([self.train_step, self.loss])
                 labels, preds, ims = self.sess.run([self.y, self.preds, self.x])
 
-            if i % 25 == 0:
+            if i % 10 == 0:
                 train_loss_hist.append(train_loss)
                 #test_loss_hist.append(test_loss)
                 #print train_labels
