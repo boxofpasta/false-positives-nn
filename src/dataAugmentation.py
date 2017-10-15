@@ -10,7 +10,7 @@ def augment_data(in_folder_path, out_folder_path):
     """ adds rotations and flips to existing images, and saves
         the new ones to the same folder """
 
-    num_rots = 10
+    num_rots = 5
     cwd = os.getcwd()
     names = os.listdir(in_folder_path)
     names = [name for name in names if name.endswith(".jpg")]

@@ -28,9 +28,9 @@ class Model:
         self.np_test_data = None
         self.cur_batch_iter = 0
         self.use_feed_dict = True
-        self.max_iters = 26
-        self.lambd = 1E-5
-        self.batch_size = 60  # make this divisible by 2 please
+        self.max_iters = 1500
+        self.lambd = 0.0 #1E-5
+        self.batch_size = 80  # make this divisible by 2 please
         self.learn_rate = 2E-6
         self.im_len = self.loader.targ_im_h
         self.train_data = self.loader.get_train_data()
@@ -54,27 +54,32 @@ class Model:
         stdev = tf.pow(tf.reduce_mean(sqred_diffs, axis=0), 0.5)
         self.x /= stdev
 
+        depths = [1, 64, 128, 256]
+
         # first conv layer
-        W1 = init_rand_weight([7, 7, 1, 64])
-        b1 = init_rand_bias([64])
-        conv1 = tf.nn.relu(tf.nn.conv2d(self.x, W1, strides=[1, 1, 1, 1], padding='SAME') + b1, name='features_1')
-        out1 = tf.nn.max_pool(conv1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name='pool_1')
+        W1 = init_rand_weight([8, 8, depths[0], depths[1]])
+        b1 = init_rand_bias(depths[1])
+        out1 = tf.nn.relu(tf.nn.conv2d(self.x, W1, strides=[1, 1, 1, 1], padding='SAME') + b1, name='features_1')
+        #conv1 = tf.nn.relu(tf.nn.conv2d(self.x, W1, strides=[1, 2, 2, 1], padding='SAME') + b1, name='features_1')
+        #out1 = tf.nn.max_pool(conv1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name='pool_1')
 
         # second conv layer
-        W2 = init_rand_weight([4, 4, 64, 128])
-        b2 = init_rand_bias([128])
-        conv2 = tf.nn.relu(tf.nn.conv2d(out1, W2, strides=[1, 1, 1, 1], padding='SAME') + b2, name='features_2')
-        out2 = tf.nn.max_pool(conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name='pool_2')
+        W2 = init_rand_weight([4, 4, depths[1], depths[2]])
+        b2 = init_rand_bias(depths[2])
+        out2 = tf.nn.relu(tf.nn.conv2d(out1, W2, strides=[1, 2, 2, 1], padding='SAME') + b2, name='features_2')
+        #conv2 = tf.nn.relu(tf.nn.conv2d(out1, W2, strides=[1, 1, 1, 1], padding='SAME') + b2, name='features_2')
+        #out2 = tf.nn.max_pool(conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name='pool_2')
 
         # third conv layer
-        W3 = init_rand_weight([2, 2, 128, 256])
-        b3 = init_rand_bias([256])
-        conv3 = tf.nn.relu(tf.nn.conv2d(out2, W3, strides=[1, 1, 1, 1], padding='SAME') + b3, name='features_3')
-        out3 = tf.nn.max_pool(conv3, ksize=[1, 1, 1, 1], strides=[1, 1, 1, 1], padding='SAME', name='pool_3')
+        W3 = init_rand_weight([2, 2, depths[2], depths[3]])
+        b3 = init_rand_bias(depths[3])
+        out3 = tf.nn.relu(tf.nn.conv2d(out2, W3, strides=[1, 2, 2, 1], padding='SAME') + b3, name='features_3')
+        #conv3 = tf.nn.relu(tf.nn.conv2d(out2, W3, strides=[1, 1, 1, 1], padding='SAME') + b3, name='features_3')
+        #out3 = tf.nn.max_pool(conv3, ksize=[1, 2, 2, 1], strides=[1, 1, 1, 1], padding='SAME', name='pool_3')
 
         # 1st fc layer
         side_len = int(self.im_len / 4.0)
-        flattened_len = side_len * side_len * 256
+        flattened_len = side_len * side_len * depths[3]
         fc1_len = 512
         W_fc1 = init_rand_weight([flattened_len, fc1_len])
         b_fc1 = init_rand_bias([fc1_len])
@@ -159,11 +164,6 @@ class Model:
                 print "with loss : " + str(train_loss)
                 print ""
 
-        #plt.plot(np.arange(len(train_loss_hist)), train_loss_hist, label="train loss")
-        #plt.plot(np.arange(len(test_loss_hist)), test_loss_hist, label="test loss")
-        #plt.legend(loc='upper right', fontsize=10)
-        #plt.show()
-
         """im, labels, preds = self.sess.run([self.x, self.y, self.preds], feed_dict={self.x: self.np_test_data[0], self.y: self.np_test_data[1]})
         print "TEST PREDICTIONS "
         im = np.reshape(im[-1], (self.im_len, self.im_len))
@@ -174,6 +174,8 @@ class Model:
         coord.request_stop()
         coord.join(threads)
         #self.sess.close()
+
+        return train_loss_hist
 
     def get_evidence(self, im):
         """ prediction is based on running the network on input and entire support set,
@@ -197,16 +199,3 @@ class Model:
         for i in range(len(ims)):
             preds.append(self.get_evidence(ims[i]))
         return preds
-
-
-if __name__ == '__main__':
-    #dataAugmentation.augment_data("original_train_set/", "aug_train_set/")
-
-    m = Model()
-    m.train()
-    evidences = m.get_evidence_arr(m.np_test_data[0])
-    print evidences
-    print m.np_test_data[1]
-
-
-
