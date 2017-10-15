@@ -49,7 +49,7 @@ class BatchLoader:
 
     def get_queues_from_directory(self, dir_path):
         names = os.listdir(dir_path)
-        names = [name for name in names if name.endswith(".jpg")]
+        names = sorted([name for name in names if name.endswith(".jpg")])
         labels = [int(name[:4] == "true") for name in names]
 
         im_names = [dir_path + name for name in names]

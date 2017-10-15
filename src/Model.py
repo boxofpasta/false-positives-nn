@@ -28,9 +28,9 @@ class Model:
         self.np_test_data = None
         self.cur_batch_iter = 0
         self.use_feed_dict = True
-        self.max_iters = 1500
-        self.lambd = 0.0 #1E-5
-        self.batch_size = 80  # make this divisible by 2 please
+        self.max_iters = 10000
+        self.lambd = 1E-5
+        self.batch_size = 350  # make this divisible by 2 please
         self.learn_rate = 2E-6
         self.im_len = self.loader.targ_im_h
         self.train_data = self.loader.get_train_data()
@@ -54,33 +54,33 @@ class Model:
         stdev = tf.pow(tf.reduce_mean(sqred_diffs, axis=0), 0.5)
         self.x /= stdev
 
-        depths = [1, 64, 128, 256]
+        depths = [1, 32, 64, 64]
 
         # first conv layer
         W1 = init_rand_weight([8, 8, depths[0], depths[1]])
         b1 = init_rand_bias(depths[1])
-        out1 = tf.nn.relu(tf.nn.conv2d(self.x, W1, strides=[1, 1, 1, 1], padding='SAME') + b1, name='features_1')
-        #conv1 = tf.nn.relu(tf.nn.conv2d(self.x, W1, strides=[1, 2, 2, 1], padding='SAME') + b1, name='features_1')
-        #out1 = tf.nn.max_pool(conv1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name='pool_1')
+        #out1 = tf.nn.relu(tf.nn.conv2d(self.x, W1, strides=[1, 1, 1, 1], padding='SAME') + b1, name='features_1')
+        conv1 = tf.nn.relu(tf.nn.conv2d(self.x, W1, strides=[1, 1, 1, 1], padding='SAME') + b1, name='features_1')
+        out1 = tf.nn.max_pool(conv1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name='pool_1')
 
         # second conv layer
         W2 = init_rand_weight([4, 4, depths[1], depths[2]])
         b2 = init_rand_bias(depths[2])
-        out2 = tf.nn.relu(tf.nn.conv2d(out1, W2, strides=[1, 2, 2, 1], padding='SAME') + b2, name='features_2')
-        #conv2 = tf.nn.relu(tf.nn.conv2d(out1, W2, strides=[1, 1, 1, 1], padding='SAME') + b2, name='features_2')
-        #out2 = tf.nn.max_pool(conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name='pool_2')
+        #out2 = tf.nn.relu(tf.nn.conv2d(out1, W2, strides=[1, 2, 2, 1], padding='SAME') + b2, name='features_2')
+        conv2 = tf.nn.relu(tf.nn.conv2d(out1, W2, strides=[1, 1, 1, 1], padding='SAME') + b2, name='features_2')
+        out2 = tf.nn.max_pool(conv2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name='pool_2')
 
         # third conv layer
         W3 = init_rand_weight([2, 2, depths[2], depths[3]])
         b3 = init_rand_bias(depths[3])
-        out3 = tf.nn.relu(tf.nn.conv2d(out2, W3, strides=[1, 2, 2, 1], padding='SAME') + b3, name='features_3')
-        #conv3 = tf.nn.relu(tf.nn.conv2d(out2, W3, strides=[1, 1, 1, 1], padding='SAME') + b3, name='features_3')
-        #out3 = tf.nn.max_pool(conv3, ksize=[1, 2, 2, 1], strides=[1, 1, 1, 1], padding='SAME', name='pool_3')
+        #out3 = tf.nn.relu(tf.nn.conv2d(out2, W3, strides=[1, 1, 1, 1], padding='SAME') + b3, name='features_3')
+        conv3 = tf.nn.relu(tf.nn.conv2d(out2, W3, strides=[1, 1, 1, 1], padding='SAME') + b3, name='features_3')
+        out3 = tf.nn.max_pool(conv3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name='pool_3')
 
         # 1st fc layer
-        side_len = int(self.im_len / 4.0)
+        side_len = int(self.im_len / 8.0)
         flattened_len = side_len * side_len * depths[3]
-        fc1_len = 512
+        fc1_len = 1024
         W_fc1 = init_rand_weight([flattened_len, fc1_len])
         b_fc1 = init_rand_bias([fc1_len])
 
@@ -88,7 +88,7 @@ class Model:
         a_fc1 = tf.nn.relu(tf.matmul(tf.reshape(out3, [-1, flattened_len]), W_fc1) + b_fc1)
 
         # final fc layer
-        fc2_len = 64
+        fc2_len = 512
         W_fc2 = init_rand_weight([fc1_len, fc2_len])
         b_fc2 = init_rand_bias([fc2_len])
         self.a_fc2 = tf.matmul(a_fc1, W_fc2) + b_fc2
@@ -110,8 +110,8 @@ class Model:
 
         # define loss
         #self.loss = tf.reduce_sum(tf.nn.sigmoid_cross_entropy_with_logits(self.a_fc2, expanded_labels))
-        self.loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(self.a_d, self.labels))
-        self.loss += self.lambd * (tf.reduce_sum(tf.square(W_fc2)) + tf.reduce_sum(tf.square(W_fc1)))
+        self.loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.a_d, labels=self.labels))
+        #self.loss += self.lambd * (tf.reduce_sum(tf.square(W_fc2)) + tf.reduce_sum(tf.square(W_fc1)))
         self.train_step = tf.train.AdamOptimizer(self.learn_rate).minimize(self.loss)
 
     def get_batch(self):
