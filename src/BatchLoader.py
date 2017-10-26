@@ -28,8 +28,8 @@ class BatchLoader:
         
         # images will be warped to these dimensions for inference / training
         self.im_channels = 1
-        self.targ_im_h = 40
-        self.targ_im_w = 40
+        self.targ_im_h = 105
+        self.targ_im_w = 105
         self.train_path = "../images/augmented_train/"
         self.test_path = "../images/test/"
         self.im = None
