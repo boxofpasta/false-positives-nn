@@ -38,6 +38,18 @@ class Model:
         self.build_graph()
         self.sess = tf.Session()
 
+    def build_conv_layer(self, input, in_depth, out_depth, width, height, max_pool=True):
+    	"""
+			pretty non-generalizable utility function.
+    	"""
+    	W = init_rand_weight([width, height, in_depth, out_depth]);
+    	b = init_rand_bias(out_depth);
+        conv = tf.nn.relu(tf.nn.conv2d(input, W, strides=[1, 1, 1, 1], padding='VALID') + b, name='features_1')
+        if max_pool:
+        	out = tf.nn.max_pool(conv, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME', name='pool_1')
+        	return out
+        return conv
+
     def build_graph(self):
 
         # define graph
@@ -54,7 +66,7 @@ class Model:
         stdev = tf.pow(tf.reduce_mean(sqred_diffs, axis=0), 0.5)
         self.x /= stdev
 
-        depths = [1, 32, 64, 64]
+        """depths = [1, 32, 64, 64]
 
         # first conv layer
         W1 = init_rand_weight([8, 8, depths[0], depths[1]])
@@ -93,14 +105,30 @@ class Model:
         b_fc2 = init_rand_bias([fc2_len])
         self.a_fc2 = tf.matmul(a_fc1, W_fc2) + b_fc2
         # self.preds = tf.nn.sigmoid(self.a_fc2)
+        """
+        depths = [1, 64, 128, 128, 256]
+
+        out1 = self.build_conv_layer(self.x, depths[0], depths[1], 10, 10);
+        out2 = self.build_conv_layer(out1, depths[1], depths[2], 7, 7);
+        out3 = self.build_conv_layer(out2, depths[2], depths[3], 4, 4);
+        out4 = self.build_conv_layer(out3, depths[3], depths[4], 4, 4, False);
+
+        flattened_len = 6 * 6 * depths[-1]
+        flattened = tf.reshape(out4, [-1, flattened_len])
+
+        fc1_len = 4096
+        W_fc1 = init_rand_weight([flattened_len, fc1_len])
+        b_fc1 = init_rand_bias([fc1_len])
+        self.a_fc1 = tf.matmul(flattened, W_fc1) + b_fc1
         expanded_labels = tf.expand_dims(tf.cast(self.y, tf.float32), axis=1)
 
         # siamese pairings, same = 0, different = 1
         # note that batch_len / 2.0 != self.batch_len / 2.0 sometimes (near end of epoch, when not enough remains)
-        batch_len = tf.shape(self.a_fc2)[0]
-        self.dist = tf.abs(self.a_fc2[0 : batch_len/2, :] - self.a_fc2[batch_len/2 : batch_len, :])
-        W_d = init_rand_weight([fc2_len, 1])
-        self.a_d = tf.squeeze(tf.matmul(self.dist, W_d))
+        batch_len = tf.shape(self.a_fc1)[0]
+        self.dist = tf.abs(self.a_fc1[0 : batch_len/2, :] - self.a_fc1[batch_len/2 : batch_len, :])
+        W_d = init_rand_weight([fc1_len, 1])
+        b_d = init_rand_bias(1)
+        self.a_d = tf.squeeze(tf.matmul(self.dist, W_d) + b_d)
         self.preds = tf.nn.sigmoid(self.a_d)
 
         # reshape labels
